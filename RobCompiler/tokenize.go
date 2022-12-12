@@ -198,9 +198,14 @@ var twoLengthTokenTypes = map[string]TokenType{
 	">=": GreaterThanEqToken,
 	"<=": LessThanEqToken,
 	"->": RightArrowToken,
+	"--": CommentToken,
+	"{-": CommentToken,
 }
 
 var commentStart = "--"
+var multilineCommentStart = "{-"
+var multilineCommentEnd = "-}"
+
 var allowedIdentifierStarts = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
 var allowedNumberStarts = ".0123456789"
 
@@ -341,6 +346,10 @@ func (mo *MakeOperator) tokenize(previous Tokenizer) Tokenizer {
 			mo.tokSource.Return()
 			mo.tokSource.Return()
 			return &MakeComment{tokSource: mo.tokSource}
+		} else if operator == multilineCommentStart {
+			mo.tokSource.Return()
+			mo.tokSource.Return()
+			return &MakeMultilineComment{tokSource: mo.tokSource}
 		}
 
 		if makes2LengthOperator {
@@ -373,6 +382,30 @@ func (mc *MakeComment) tokenize(previous Tokenizer) Tokenizer {
 	return previous
 }
 
+type MakeMultilineComment struct {
+	tokSource *TokenizingSource
+}
+
+func (mc *MakeMultilineComment) tokenize(previous Tokenizer) Tokenizer {
+	mc.tokSource.Take()
+	mc.tokSource.Take()
+	depth := 1
+	var last rune
+	for !mc.tokSource.Finished() && depth > 0 {
+		r := mc.tokSource.Take()
+		if string(last)+string(r) == multilineCommentStart {
+			depth++
+		}
+		if string(last)+string(r) == multilineCommentEnd {
+			depth--
+			break
+		}
+		last = r
+	}
+	mc.tokSource.EmitToken(CommentToken)
+	return nil
+}
+
 func isKeyOf(s rune, source map[rune]TokenType) bool {
 	_, ok := source[s]
 	return ok
@@ -381,15 +414,6 @@ func isKeyOf(s rune, source map[rune]TokenType) bool {
 func isFirstLetterKeyOf(s rune, source map[string]TokenType) bool {
 	for k := range source {
 		if []rune(k)[0] == s {
-			return true
-		}
-	}
-	return false
-}
-
-func isSecondLetterKeyOf(s rune, source map[string]TokenType) bool {
-	for k := range source {
-		if []rune(k)[1] == s {
 			return true
 		}
 	}

@@ -2,10 +2,13 @@ module Main exposing Robot
 import Debug
 
 -- an example program to work on testing the compiler
+{-
+	it should be a fair display of many features but in a simplified way
+-}
 program = 
 	{ components = {}
 	, inputs = {
-		, PrintTicker: Time.every (Unit.Millisecond 100)
+		, PrintTicker = Time.every (Unit.Millisecond 100)
 		}
 	, outputs = [Debug.text]
 	, update = update
@@ -13,15 +16,14 @@ program =
 }
 
 
-type alias Robot 
-	= Yup
-
-init: () -> (Robot, Command)
-init _ = 
-	Yup, Command.None
+type alias Robot = ()
 
 
 update: Robot -> Message -> (Robot, Command) 
 update robot msg = 
 	case msg of 
 		PrintTicker -> (robot, Debug.text "ticked")
+
+init: () -> (Robot, Command)
+init _ = 
+	(), Command.none
