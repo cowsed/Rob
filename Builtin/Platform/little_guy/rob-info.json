@@ -1,0 +1,11 @@
+{
+    "type": "external",
+    "name": "little_guy",
+    "source_directories": [
+        "src"
+    ],
+
+    "type_implementations": {
+        
+    }
+}

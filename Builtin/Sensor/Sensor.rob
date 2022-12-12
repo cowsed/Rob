@@ -1,0 +1,10 @@
+
+type PollStyle 
+    = AsFastAsPossible
+    | Every Unit.Duration
+    | OnRequest
+
+
+type DigitalSignal
+    = Low
+    | High

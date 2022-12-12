@@ -1,0 +1,9 @@
+{
+    "type": "module-internal",
+    "rob_version": "0.0",
+    "name": "Unit",
+    "requires": [],
+    "source_directories": [
+        "src"
+    ]
+}

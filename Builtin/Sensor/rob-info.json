@@ -1,0 +1,6 @@
+{
+    "type": "module-internal",
+    "rob_version": "0.0",
+    "name": "Sensor",
+    "requires": ["Builtin://Unit"]
+}

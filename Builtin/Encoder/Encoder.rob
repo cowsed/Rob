@@ -1,0 +1,4 @@
+
+type alias Position = Unit.Revolution 
+
+Encoder: Platform.EncoderPort -> Sensor.PollStyle -> Sub Position

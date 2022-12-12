@@ -1,0 +1,11 @@
+module LittleGut exposing (..)
+
+type alias Pin = Int
+
+type EncoderPort = {PinA: Pin, PinB: Pin}
+
+type MotorPort = 
+    { PinA: Pin
+    , PinB: Pin
+    , PinC: Pin
+    }

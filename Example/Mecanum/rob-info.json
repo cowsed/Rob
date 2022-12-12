@@ -1,0 +1,7 @@
+{
+    "type": "robot",
+    "source_directories": [
+        "src"
+    ],
+    "rob_version": "0.0"
+}

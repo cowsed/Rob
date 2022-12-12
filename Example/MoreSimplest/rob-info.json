@@ -1,0 +1,5 @@
+{
+    "type": "robot",
+    "target": "cpp/console",
+    "requires": ["Builtin://Debug"]
+}

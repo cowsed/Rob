@@ -1,0 +1,10 @@
+{
+    "type": "special",
+    "requires": [],
+    "type_implementations": {
+        "cpp/*": {
+            "Float": "double",
+            "Int": "int32_t"
+        } 
+    }
+}

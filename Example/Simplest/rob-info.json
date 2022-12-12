@@ -1,0 +1,11 @@
+{
+    "type": "robot",
+    "target": "micropython/little_guy",
+    "board": "rp2040",
+ 
+    
+    "requires": [
+        "Builtin://Unit",
+        "Builtin://little_guy"
+    ] 
+}

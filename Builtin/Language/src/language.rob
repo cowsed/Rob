@@ -1,0 +1,12 @@
+
+
+
+type alias Int = Int
+type alias Float = Float 
+
+type alias Number
+    = Int
+    | Float
+
+
+type alias String = String

@@ -1,0 +1,23 @@
+{
+    "type": "component",
+    "rob_version": "0.0",
+    "name": "Encoder",
+    "requires": [
+        "Builtin://Unit",
+        "Builtin://Vex",
+        "Builtin://Sensor"
+    ],
+    "func_implementations": {
+        "cpp/Vex": {
+            "Encoder": {
+                "arg_types": ["Vex.TriwirePort", "Sensor.PollStyle"],
+                "return": "Sub Position",
+                "initializes_input": "vex::encoder $instance_name($arg1);",
+                "subscription_source": "$instance_name.read(vex::rotationUnit::rev)"
+                
+            }
+        },
+        "c++/Arduino": {},
+        "micropython/little_guy": {}
+    }
+}

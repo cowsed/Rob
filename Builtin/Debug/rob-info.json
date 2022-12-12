@@ -1,0 +1,20 @@
+{
+    "type": "module-external",
+    "rob_version": "0.0",
+    "name": "Debug",
+    "requires": [],
+    "func_implementations":{
+        "Println": {
+            "arg_types": ["String"],
+            "return": "",
+
+            "cpp/*": {
+                "requires_include": "<iostream>",
+                "call": "std::cout << $arg1 << std::endl;"
+            },
+            "python/*": {
+                "call": "print($arg1)"
+            }
+        }
+    }
+}
