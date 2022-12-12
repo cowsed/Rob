@@ -46,13 +46,18 @@ func (ts *TokenizingSource) Setup() {
 func (ts *TokenizingSource) EmitError(err error) {
 	ts.errors = append(ts.errors, err)
 }
+
+func (ts *TokenizingSource) currentRange() SourceRange {
+	return SourceRange{
+		start:        ts.end_of_last_token,
+		end:          ts.source_index,
+		source_runes: &ts.source_runes,
+	}
+}
+
 func (ts *TokenizingSource) EmitToken(tokenType TokenType) {
 	ts.tokens = append(ts.tokens, Token{
-		srange: SourceRange{
-			start:        ts.end_of_last_token,
-			end:          ts.source_index,
-			source_runes: &ts.source_runes,
-		},
+		srange:    ts.currentRange(),
 		tokenType: tokenType,
 	})
 	text := ts.source_runes[ts.end_of_last_token:ts.source_index]
@@ -84,81 +89,7 @@ func (ts *TokenizingSource) Return() {
 }
 
 func (ts *TokenizingSource) Finished() bool {
-	return ts.end_of_last_token >= len(ts.source_runes)
-}
-
-const EOFRune = 0x00
-
-type TokenType int
-
-const (
-	UnknownToken = iota
-	SpaceToken
-	NewlineToken
-	TabToken
-	CommaToken
-	DotToken
-	OpenParenToken
-	CloseParenToken
-	OpenCurlyToken
-	CloseCurlyToken
-	OpenSquareToken
-	CloseSquareToken
-
-	AsignmentToken
-	PlusToken
-	MinusToken
-	StarToken
-	DivideToken
-	LessThanToken
-	GreaterThanToken
-
-	EqualsToken
-	GreaterThanEqToken
-	LessThanEqToken
-	RightArrowToken
-
-	CommentToken
-	IdentifierToken
-	NumberToken
-	StringToken
-)
-
-func (tt TokenType) String() string {
-	return map[TokenType]string{
-		UnknownToken:       "UnknownToken",
-		SpaceToken:         "SpaceToken",
-		NewlineToken:       "NewlineToken",
-		TabToken:           "TabToken",
-		CommaToken:         "CommaToken",
-		DotToken:           "DotToken",
-		OpenParenToken:     "OpenParenToken",
-		CloseParenToken:    "CloseParenToken",
-		OpenCurlyToken:     "OpenCurlyToken",
-		CloseCurlyToken:    "CloseCurlyToken",
-		OpenSquareToken:    "OpenSquareToken",
-		CloseSquareToken:   "CloseSquareToken",
-		AsignmentToken:     "AsignmentToken",
-		PlusToken:          "PlusToken",
-		MinusToken:         "MinusToken",
-		StarToken:          "StarToken",
-		DivideToken:        "DivideToken",
-		LessThanToken:      "LessThanToken",
-		GreaterThanToken:   "GreaterThanToken",
-		EqualsToken:        "EqualsToken",
-		GreaterThanEqToken: "GreaterThanEqToken",
-		LessThanEqToken:    "LessThanEqToken",
-		CommentToken:       "CommentToken",
-		IdentifierToken:    "IdentifierToken",
-		NumberToken:        "NumberToken",
-		StringToken:        "StringToken",
-		RightArrowToken:    "RightArrowToken",
-	}[tt]
-}
-
-type Token struct {
-	srange    SourceRange
-	tokenType TokenType
+	return ts.source_index >= len(ts.source_runes)
 }
 
 func (t Token) String() string {
@@ -171,49 +102,12 @@ func (t Token) String() string {
 	return fmt.Sprintf("{%s: `%s`}", t.tokenType.String(), str_range)
 }
 
-var oneLengthTokenTypes = map[rune]TokenType{
-
-	' ':  SpaceToken,
-	'\t': TabToken,
-	'\n': NewlineToken,
-	',':  DotToken,
-	'.':  CommaToken,
-	'(':  OpenParenToken,
-	')':  CloseParenToken,
-	'[':  OpenSquareToken,
-	']':  CloseSquareToken,
-	'{':  OpenCurlyToken,
-	'}':  CloseCurlyToken,
-	'=':  AsignmentToken,
-	'+':  PlusToken,
-	'-':  MinusToken,
-	'*':  StarToken,
-	'/':  DivideToken,
-	'<':  LessThanToken,
-	'>':  GreaterThanToken,
-}
-
-var twoLengthTokenTypes = map[string]TokenType{
-	"==": EqualsToken,
-	">=": GreaterThanEqToken,
-	"<=": LessThanEqToken,
-	"->": RightArrowToken,
-	"--": CommentToken,
-	"{-": CommentToken,
-}
-
-var commentStart = "--"
-var multilineCommentStart = "{-"
-var multilineCommentEnd = "-}"
-
-var allowedIdentifierStarts = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
-var allowedNumberStarts = ".0123456789"
-
 func Tokenize(source_text string) ([]Token, error) {
 	source := TokenizingSource{
 		source:            source_text,
-		source_identifier: "filename/",
+		source_identifier: "filename.roc",
 	}
+	sourceToFilename[&source.source_runes] = source.source_identifier
 	source.Setup()
 
 	var tokenizer Tokenizer = &SearchForSomething{
@@ -287,9 +181,15 @@ type MakeStringLiteral struct {
 }
 
 func (ms *MakeStringLiteral) tokenize(previus Tokenizer) Tokenizer {
+
 	ms.tokSource.Take() // first "
 	for ms.tokSource.Take() != '"' {
-
+		if ms.tokSource.Finished() {
+			ms.tokSource.EmitError(UnclosedStringLiteral{
+				srange: ms.tokSource.currentRange(),
+			})
+			break
+		}
 	}
 	ms.tokSource.EmitToken(StringToken)
 	return nil
@@ -315,6 +215,11 @@ type MakeIdentifer struct {
 func willSeparate(r rune) bool {
 	for op := range oneLengthTokenTypes {
 		if r == op {
+			return true
+		}
+	}
+	for op := range twoLengthTokenTypes {
+		if r == []rune(op)[0] {
 			return true
 		}
 	}
