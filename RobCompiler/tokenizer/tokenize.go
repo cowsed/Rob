@@ -1,28 +1,60 @@
-package main
+package tokenizer
 
 import (
 	"fmt"
 	"strings"
 )
 
-type MegaError []error
-
-func (me MegaError) Error() string {
-	s := ""
-	for _, e := range me {
-		s += e.Error()
-		s += "\n"
-	}
-	return s
+type SourceRange struct {
+	Start, End  int
+	SourceRunes *[]rune
 }
 
-type SourceRange struct {
-	start, end   int
-	source_runes *[]rune
+func (sr SourceRange) Length() int {
+	return sr.End - sr.Start
+}
+func (sr SourceRange) GetStartOfLine() int {
+	for i := sr.Start - 1; i > 0; i-- {
+		if (*sr.SourceRunes)[i] == '\n' {
+			return i + 1
+		}
+	}
+	return 0
+}
+
+func (sr SourceRange) GetLine() string {
+
+	lineStart := sr.Start
+	if (*sr.SourceRunes)[sr.Start] == '\n' {
+		lineStart--
+	}
+	//find current line
+	for i := lineStart; i >= 0; i-- {
+		lineStart = i
+		if (*sr.SourceRunes)[i] == '\n' {
+			lineStart++
+			break
+		}
+	}
+
+	lineEnd := sr.End - 1
+	for i := sr.End - 1; i < len(*sr.SourceRunes); i++ {
+		lineEnd = i
+		fmt.Println("finding end", string((*sr.SourceRunes)[i]))
+		if (*sr.SourceRunes)[i] == '\n' {
+			break
+		}
+	}
+	currentLine := (*sr.SourceRunes)[lineStart:lineEnd]
+
+	return string(currentLine)
+}
+func (sr SourceRange) LineNumber() int {
+	return strings.Count(string((*sr.SourceRunes)[:sr.Start]), "\n") + 1
 }
 
 func (sr SourceRange) String() string {
-	return string((*sr.source_runes)[sr.start:sr.end])
+	return string((*sr.SourceRunes)[sr.Start:sr.End])
 }
 
 // A way to represent a source file and peek, take runes from it
@@ -49,22 +81,20 @@ func (ts *TokenizingSource) EmitError(err error) {
 
 func (ts *TokenizingSource) currentRange() SourceRange {
 	return SourceRange{
-		start:        ts.end_of_last_token,
-		end:          ts.source_index,
-		source_runes: &ts.source_runes,
+		Start:       ts.end_of_last_token,
+		End:         ts.source_index,
+		SourceRunes: &ts.source_runes,
 	}
 }
 
 func (ts *TokenizingSource) EmitToken(tokenType TokenType) {
 	ts.tokens = append(ts.tokens, Token{
-		srange:    ts.currentRange(),
-		tokenType: tokenType,
+		Range: ts.currentRange(),
+		Type:  tokenType,
 	})
-	text := ts.source_runes[ts.end_of_last_token:ts.source_index]
-	fmt.Printf("Emitted%s: `%s`\n", tokenType.String(), string(text))
+
 	ts.end_of_last_token = ts.source_index
 
-	fmt.Println("---- Tokens: ", ts.tokens)
 }
 
 func (ts *TokenizingSource) Take() rune {
@@ -93,19 +123,19 @@ func (ts *TokenizingSource) Finished() bool {
 }
 
 func (t Token) String() string {
-	str_range := t.srange.String()
+	str_range := t.Range.String()
 	if str_range == "\n" {
 		str_range = "\\n"
 	} else if str_range == "\t" {
 		str_range = "\t"
 	}
-	return fmt.Sprintf("{%s: `%s`}", t.tokenType.String(), str_range)
+	return fmt.Sprintf("{%s: `%s`}", t.Type.String(), str_range)
 }
 
 func Tokenize(source_text string) ([]Token, error) {
 	source := TokenizingSource{
 		source:            source_text,
-		source_identifier: "filename.roc",
+		source_identifier: "filename.rob",
 	}
 	sourceToFilename[&source.source_runes] = source.source_identifier
 	source.Setup()
@@ -115,20 +145,19 @@ func Tokenize(source_text string) ([]Token, error) {
 	}
 
 	for !source.Finished() {
-		fmt.Println("finished", source.Finished(), source.source_index, len(source.source_runes))
 		tokenizer = tokenizer.tokenize(nil)
 		if tokenizer == nil {
-			fmt.Println("Not looking for anything particular, searching for something")
 			tokenizer = &SearchForSomething{
 				tokSource: &source,
 			}
 		}
 	}
+	source.EmitToken(EOFToken)
 	var err error
 	if len(source.errors) == 0 {
 		err = nil
 	} else {
-		err = MegaError(source.errors)
+		err = ComboError(source.errors)
 	}
 	return source.tokens, err
 }
@@ -143,13 +172,11 @@ type SearchForSomething struct {
 
 func (sfs *SearchForSomething) tokenize(previous Tokenizer) Tokenizer {
 	next := sfs.tokSource.Peek()
-	fmt.Println("next", next)
 
 	startOf2LengthOperator := isFirstLetterKeyOf(next, twoLengthTokenTypes)
 	oneLengthOperator := isKeyOf(next, oneLengthTokenTypes)
 
 	if oneLengthOperator || startOf2LengthOperator {
-		fmt.Println("was operator", string(next))
 		return &MakeOperator{
 			tokSource: sfs.tokSource,
 		}
@@ -171,7 +198,13 @@ func (sfs *SearchForSomething) tokenize(previous Tokenizer) Tokenizer {
 		}
 	}
 
-	fmt.Println("Unknown", string(next))
+	//We've got no idea what this is, thats an error
+
+	sfs.tokSource.Take()
+	sfs.tokSource.EmitError(&UnknownCharacter{
+		where: sfs.tokSource.currentRange(),
+	})
+	sfs.tokSource.EmitToken(UnknownToken)
 
 	return sfs
 }
@@ -183,11 +216,17 @@ type MakeStringLiteral struct {
 func (ms *MakeStringLiteral) tokenize(previus Tokenizer) Tokenizer {
 
 	ms.tokSource.Take() // first "
-	for ms.tokSource.Take() != '"' {
-		if ms.tokSource.Finished() {
+	for {
+		r := ms.tokSource.Take()
+		if r == '"' {
+			break
+		}
+
+		if r == '\n' {
 			ms.tokSource.EmitError(UnclosedStringLiteral{
-				srange: ms.tokSource.currentRange(),
+				where: ms.tokSource.currentRange(),
 			})
+			ms.tokSource.Return()
 			break
 		}
 	}
@@ -230,8 +269,24 @@ func (mi *MakeIdentifer) tokenize(previus Tokenizer) Tokenizer {
 	for !willSeparate(mi.tokSource.Take()) {
 	}
 	mi.tokSource.Return()
-	mi.tokSource.EmitToken(IdentifierToken)
+
+	text := mi.tokSource.currentRange().String()
+	if isOuterKeyWord(text) {
+		mi.tokSource.EmitToken(StatementToken)
+	} else {
+		mi.tokSource.EmitToken(IdentifierToken)
+	}
 	return nil
+}
+
+func isOuterKeyWord(t string) bool {
+	outerKeywordSet := map[string]bool{
+		"type":   true,
+		"alias":  true,
+		"module": true,
+		"import": true,
+	}
+	return outerKeywordSet[t]
 }
 
 type MakeOperator struct {

@@ -1,29 +1,28 @@
-module Main exposing Robot
+module Main
 import Debug
 
 -- an example program to work on testing the compiler
 {-
 	it should be a fair display of many features but in a simplified way
+  like this, a multiline comment
 -}
 program = 
-	{ components = {}
-	, inputs = {
-		, PrintTicker = Time.every (Unit.Millisecond 100)
-		}
-	, outputs = [Debug.text]
-	, update = update
-	, init = init
+  { components = {}
+  , inputs = {}
+  , outputs = [Debug.text]
+  , update = update
+  , init = init
 }
 
 
 type alias Robot = ()
 
 
-update: Robot -> Message -> (Robot, Command) 
+update: Robot -> Message -> (Robot, Command)
 update robot msg = 
-	case msg of 
-		PrintTicker -> (robot, Debug.text "ticked")
+  case msg of 
+    PrintTicker -> (robot, Debug.text "ticked)
 
 init: () -> (Robot, Command)
 init _ = 
-	(), Command.none
+  (), Debug.text "Began"

@@ -1,10 +1,10 @@
-package main
+package tokenizer
 
 const EOFRune = 0x00
 
 type Token struct {
-	srange    SourceRange
-	tokenType TokenType
+	Range SourceRange
+	Type  TokenType
 }
 
 var oneLengthTokenTypes = map[rune]TokenType{
@@ -25,6 +25,7 @@ var oneLengthTokenTypes = map[rune]TokenType{
 	'-':  MinusToken,
 	'*':  StarToken,
 	'/':  DivideToken,
+	'^':  RaisedToken,
 	'<':  LessThanToken,
 	'>':  GreaterThanToken,
 }
@@ -49,6 +50,8 @@ type TokenType int
 
 const (
 	UnknownToken = iota
+	EOFToken
+
 	SpaceToken
 	NewlineToken
 	TabToken
@@ -66,6 +69,8 @@ const (
 	MinusToken
 	StarToken
 	DivideToken
+	RaisedToken
+
 	LessThanToken
 	GreaterThanToken
 
@@ -78,11 +83,14 @@ const (
 	IdentifierToken
 	NumberToken
 	StringToken
+
+	StatementToken
 )
 
 func (tt TokenType) String() string {
 	return map[TokenType]string{
 		UnknownToken:       "UnknownToken",
+		EOFToken:           "EOFToken",
 		SpaceToken:         "SpaceToken",
 		NewlineToken:       "NewlineToken",
 		TabToken:           "TabToken",
@@ -99,6 +107,7 @@ func (tt TokenType) String() string {
 		MinusToken:         "MinusToken",
 		StarToken:          "StarToken",
 		DivideToken:        "DivideToken",
+		RaisedToken:        "RaisedToken",
 		LessThanToken:      "LessThanToken",
 		GreaterThanToken:   "GreaterThanToken",
 		EqualsToken:        "EqualsToken",
@@ -109,5 +118,6 @@ func (tt TokenType) String() string {
 		NumberToken:        "NumberToken",
 		StringToken:        "StringToken",
 		RightArrowToken:    "RightArrowToken",
+		StatementToken:     "StatementToken",
 	}[tt]
 }
