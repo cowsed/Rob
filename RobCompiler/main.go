@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+
+	"github.com/fatih/color"
 )
 
 //go:embed examples/simple.rob
@@ -32,4 +34,34 @@ func main() {
 	fmt.Println("Tree making Errors:")
 	fmt.Println(tree_err)
 
+	fmt.Println("\n\n\n\n\n")
+	fmt.Println(ColorizeTokens(tokens))
+}
+
+func ColorizeTokens(toks []tokenizer.Token) string {
+	s := ""
+	for _, t := range toks {
+		var printFunc = fmt.Sprint
+
+		switch t.Type {
+		case tokenizer.StatementToken:
+			printFunc = color.New(color.FgRed).SprintFunc()
+
+		case tokenizer.IdentifierToken:
+			printFunc = color.New(color.FgCyan).SprintFunc()
+
+		case tokenizer.CommentToken:
+			printFunc = color.New(color.FgHiBlack).SprintFunc()
+
+		case tokenizer.PlusToken, tokenizer.MinusToken, tokenizer.StarToken, tokenizer.DivideToken, tokenizer.RightArrowToken, tokenizer.AsignmentToken,
+			tokenizer.DotToken, tokenizer.ColonToken:
+			printFunc = color.New(color.FgHiYellow).SprintFunc()
+
+		case tokenizer.StringToken:
+			printFunc = color.New(color.FgYellow).SprintFunc()
+		}
+
+		s += printFunc(t.Range.String())
+	}
+	return s
 }

@@ -28,6 +28,7 @@ var oneLengthTokenTypes = map[rune]TokenType{
 	'^':  RaisedToken,
 	'<':  LessThanToken,
 	'>':  GreaterThanToken,
+	':':  ColonToken,
 }
 
 var twoLengthTokenTypes = map[string]TokenType{
@@ -64,6 +65,7 @@ const (
 	OpenSquareToken
 	CloseSquareToken
 
+	ColonToken
 	AsignmentToken
 	PlusToken
 	MinusToken
@@ -119,5 +121,6 @@ func (tt TokenType) String() string {
 		StringToken:        "StringToken",
 		RightArrowToken:    "RightArrowToken",
 		StatementToken:     "StatementToken",
+		ColonToken:         "ColonToken",
 	}[tt]
 }
