@@ -34,8 +34,6 @@ func main() {
 	fmt.Println("Tree making Errors:")
 	fmt.Println(tree_err)
 
-	fmt.Println("\n\n\n\n\n")
-	fmt.Println(ColorizeTokens(tokens))
 }
 
 func ColorizeTokens(toks []tokenizer.Token) string {

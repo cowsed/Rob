@@ -39,14 +39,8 @@ func Treeify(tokens []tokenizer.Token) (*Program, error) {
 		source.EmitError(NoModule{})
 	}
 
-	fmt.Println("======= ERRORS ===============", len(source.errors))
-	fmt.Printf("%T\n", source.errors[0])
-	fmt.Printf("%T\n", source.errors[1])
-	fmt.Printf("%T\n", source.errors[2])
-
 	if len(source.errors) < 1 {
 		//we had no errors - we can have a little unsafety as a treat
-		fmt.Println("NO ERRORS")
 		source.errors = nil
 	}
 
@@ -97,10 +91,11 @@ func parseModuleDeclaration(ts *TokenSource) stateFn {
 	var name string
 	for i := 1; i < len(parts); i++ {
 		if parts[i].Type == tokenizer.SpaceToken {
+			fmt.Println("Skipping space")
 			continue
 		}
 		if parts[i].Type != tokenizer.IdentifierToken {
-			fmt.Println("was in fact a ", parts[i].Type.String())
+			fmt.Println("was in fact a ", parts[i].String())
 			ts.EmitError(ModuleNeedsName{
 				where: where,
 			})
@@ -108,6 +103,7 @@ func parseModuleDeclaration(ts *TokenSource) stateFn {
 			return lookForStatement
 		} else {
 			name = parts[i].Range.String()
+			break
 		}
 	}
 
