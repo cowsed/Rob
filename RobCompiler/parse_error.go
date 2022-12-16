@@ -89,12 +89,20 @@ func (u UnknownIdentifierUsage) Error() string {
 	return tokenizer.ErrorTemplate("Unknown Identifier Usage", u.where, "I found an identifer here but im not sure what to do with it. Usually when I see an identifier like this it is for a `Type Annotation` name: Type1 -> Type2 or a declaration name t = t + 1")
 }
 
-type SloppyError struct {
+type UnexpectedTypeInAnnotation struct {
+	where tokenizer.SourceRange
+}
+
+func (u UnexpectedTypeInAnnotation) Error() string {
+	return tokenizer.ErrorTemplate("Malformed Type in Annotation", u.where, "I was expecting a type, a tuple of types, or a record type but I found this instead")
+}
+
+type CustomError struct {
 	name        string
 	where       tokenizer.SourceRange
 	description string
 }
 
-func (s SloppyError) Error() string {
+func (s CustomError) Error() string {
 	return tokenizer.ErrorTemplate(s.name, s.where, s.description)
 }
