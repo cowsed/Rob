@@ -12,7 +12,6 @@ type FunctionDefinition struct {
 	name      string
 	signature []Type
 }
-type Type struct{}
 
 type Subscription struct{}
 type Input struct{}

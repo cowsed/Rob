@@ -52,7 +52,7 @@ func lookForOuterStatement(ts *TokenSource) stateFn {
 	}
 
 	if ts.PrevToken().Type != tokenizer.NewlineToken {
-		ts.EmitError(SloppyError{
+		ts.EmitError(CustomError{
 			name:        "Looking in the Wrong place",
 			where:       tok.Range,
 			description: "I am the lookForStatement function but i am in a place where i am not looking at the start of the line. Usually I look for type, module, import, or declarations so im not sure what to do",
@@ -107,12 +107,15 @@ func handleDeclaration(ts *TokenSource) stateFn {
 		if next.Type == tokenizer.ColonToken {
 			ts.Take() //take the `:`
 			fmt.Println("want to parse type annotation")
-			return nil
+
+			return makeTypeAnnotationParser(name)
 		}
 		if next.Type == tokenizer.AssignmentToken {
 			ts.Take() //take the =
-			fmt.Println("want to parse a declaration")
+			fmt.Println("want to parse a  declaration (function or constant)")
+			return nil
 		}
+
 		//else we dont know what we're looking at
 		ts.Take()
 		//panic("add error saying we saw an identifier but now don't know what to do with it")
@@ -124,6 +127,96 @@ func handleDeclaration(ts *TokenSource) stateFn {
 	}
 
 	return lookForOuterStatement
+}
+func makeTypeAnnotationParser(name string) stateFn {
+	f := func(ts *TokenSource) stateFn {
+
+		//already took :
+		//looking for Type, typeVariable, or {record: typeVariable}
+
+		typeSignature = TypeSignature{}
+		for {
+			ts.takeUntilNotSpace()
+			t := ts.Peek()
+			var foundType Type
+			//looking for Type, typeVariable, or {record: typeVariable}/{record: Type}, (Type, Type2)
+			if t.Type == tokenizer.OpenParenToken {
+				foundType = parseTupleType()
+			} else if t.Type == tokenizer.OpenCurlyToken {
+				foundType = parseRecordType()
+			} else if t.Type == tokenizer.IdentifierToken {
+				foundType = NamedType{}
+			} else {
+				//found something invalid
+				ts.EmitError()
+			}
+
+			//looking for ->
+			break
+		}
+
+		return lookForOuterStatement
+	}
+	return f
+}
+
+type TypeSignature struct {
+	types []Type
+}
+
+func (t TypeSignature) ReturnType() Type {
+	if len(t.types) < 1 {
+		return NoType{}
+	}
+	return t.types[len(t.types)-1]
+}
+
+type typeType int
+
+const (
+	UnknownTypeID typeType = iota
+	NamedTypeID
+	TypeVariableID
+	RecordTypeID
+	TupleTypeID
+)
+
+type Type interface {
+	Type() typeType
+	Where() tokenizer.SourceRange
+}
+
+// denotes an error - a pure function that doesnt return anything just makes heat
+type NoType struct{}
+
+func (n NoType) Type() typeType {
+	return UnknownTypeID
+}
+func (n NoType) Where() tokenizer.SourceRange {
+	return tokenizer.SourceRange{}
+}
+
+type NamedType struct {
+	name  string
+	where tokenizer.SourceRange
+}
+
+func (n NamedType) Type() typeType {
+	return NamedTypeID
+}
+func (n NamedType) Where() tokenizer.SourceRange {
+	return n.where
+}
+
+func (ts *TokenSource) takeUntilNotSpace() {
+	for {
+		t := ts.Peek()
+		if t.Type == tokenizer.SpaceToken {
+			ts.Take()
+		} else {
+			break
+		}
+	}
 }
 
 func parseComment(ts *TokenSource) stateFn {
