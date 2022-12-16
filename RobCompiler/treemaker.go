@@ -5,26 +5,21 @@ import (
 	"fmt"
 )
 
-type Program struct {
-	moduleName string
-	exposing   *Exposes
-
-	imports []Import
+type AST struct {
+	toplevel []TopASTNode
 }
 
-func Treeify(tokens []tokenizer.Token) (*Program, error) {
+func Treeify(tokens []tokenizer.Token) (*AST, error) {
 	source := &TokenSource{
 		tokens:     tokens,
 		tokenIndex: 0,
-		program: &Program{
-			moduleName: "",
-			exposing:   nil,
-			imports:    []Import{},
+		program: &AST{
+			toplevel: []TopASTNode{},
 		},
 		errors: []error{},
 	}
 
-	var state stateFn = lookForStatement
+	var state stateFn = lookForOuterStatement
 	for !source.Finished() && state != nil {
 		fmt.Printf("source.Peek(): %v\n", source.Peek())
 		state = state(source)
@@ -33,10 +28,6 @@ func Treeify(tokens []tokenizer.Token) (*Program, error) {
 	if !source.Finished() {
 		fmt.Println("====== Finished Early")
 		source.EmitError(FailedParseEarly{})
-	}
-
-	if source.program.exposing == nil {
-		source.EmitError(NoModule{})
 	}
 
 	if len(source.errors) < 1 {
@@ -52,13 +43,36 @@ type stateFn func(ts *TokenSource) stateFn
 // the outer level "looking around" function.
 // a program can be thought of blocks
 // blocks of module defintion, type definitions, function definition
-func lookForStatement(ts *TokenSource) stateFn {
+func lookForOuterStatement(ts *TokenSource) stateFn {
 	tok := ts.Peek()
+
+	if tok.Type == tokenizer.NewlineToken {
+		ts.Take()
+		return lookForOuterStatement
+	}
+
+	if ts.PrevToken().Type != tokenizer.NewlineToken {
+		ts.EmitError(SloppyError{
+			name:        "Looking in the Wrong place",
+			where:       tok.Range,
+			description: "I am the lookForStatement function but i am in a place where i am not looking at the start of the line. Usually I look for type, module, import, or declarations so im not sure what to do",
+		})
+		return nil
+	}
+
+	if tok.Type == tokenizer.CommentToken {
+		return parseComment
+	}
+
+	if tok.Type == tokenizer.IdentifierToken {
+		return handleDeclaration
+	}
+
 	//If it was something totally unexpected
 	if tok.Type != tokenizer.StatementToken {
-		ts.EmitError(ExpectedStatement{tok.Range})
+		ts.EmitError(ExpectedTopLevel{tok.Range})
 		ts.Take()
-		return lookForStatement
+		return lookForOuterStatement
 	}
 
 	switch tok.Range.String() {
@@ -76,45 +90,120 @@ func lookForStatement(ts *TokenSource) stateFn {
 	return nil
 }
 
+func handleDeclaration(ts *TokenSource) stateFn {
+	nameToken := ts.Take()
+	name := nameToken.Range.String()
+	fmt.Print("found ", name)
+	//look for a : or an identifier
+	// : -> type annotation
+	// identifier (hello, var, _) ->  declaration
+	for {
+		next := ts.Peek()
+		if next.Type == tokenizer.SpaceToken || next.Type == tokenizer.CommentToken {
+			ts.Take()
+			continue
+		}
+
+		if next.Type == tokenizer.ColonToken {
+			ts.Take() //take the `:`
+			fmt.Println("want to parse type annotation")
+			return nil
+		}
+		if next.Type == tokenizer.AssignmentToken {
+			ts.Take() //take the =
+			fmt.Println("want to parse a declaration")
+		}
+		//else we dont know what we're looking at
+		ts.Take()
+		//panic("add error saying we saw an identifier but now don't know what to do with it")
+		ts.EmitError(UnknownIdentifierUsage{
+			where: next.Range,
+		})
+		fmt.Println("Dont know what im doing with this identifier")
+		break
+	}
+
+	return lookForOuterStatement
+}
+
+func parseComment(ts *TokenSource) stateFn {
+	t := ts.Take()
+	ts.AddNode(&CommentNode{
+		text:  t.Range.String(),
+		where: t.Range,
+	})
+	return lookForOuterStatement
+}
+
 func parseModuleDeclaration(ts *TokenSource) stateFn {
 	parts := ts.takeUntilNewline()
-	fmt.Println("took module stuff")
-	fmt.Println(parts)
 	where := mergeRangesOfTokens(parts)
 
 	if len(parts) < 1 {
 		ts.EmitError(ModuleNeedsName{where})
-		return lookForStatement
+		return lookForOuterStatement
 	}
-	fmt.Println("Looking for identifier")
-	//find first non Whitespace character after 'module' - thats the name
-	var name string
-	for i := 1; i < len(parts); i++ {
-		if parts[i].Type == tokenizer.SpaceToken {
-			fmt.Println("Skipping space")
+
+	shouldBeNameToken := findFirstNonSpace(parts[1:])
+
+	if shouldBeNameToken.Type != tokenizer.IdentifierToken {
+		ts.EmitError(ModuleNeedsName{
+			where: where,
+		})
+		fmt.Println("error emitted")
+		return lookForOuterStatement
+	}
+
+	var name string = shouldBeNameToken.Range.String()
+
+	ts.AddNode(&ModuleDeclaration{
+		name:  name,
+		where: where,
+	})
+
+	return lookForOuterStatement
+}
+
+func parseImport(ts *TokenSource) stateFn {
+	parts := ts.takeUntilNewline()
+	where := mergeRangesOfTokens(parts)
+
+	if len(parts) < 1 {
+		ts.EmitError(ImportNeedsName{where})
+		return lookForOuterStatement
+	}
+
+	shouldBeNameToken := findFirstNonSpace(parts[1:])
+
+	if shouldBeNameToken.Type != tokenizer.IdentifierToken {
+		ts.EmitError(ImportNeedsName{
+			where: where,
+		})
+		fmt.Println("error emitted")
+		return lookForOuterStatement
+	}
+
+	var name string = shouldBeNameToken.Range.String()
+
+	imp := ImportDeclaration{
+		name: name,
+	}
+
+	ts.AddNode(&imp)
+
+	return lookForOuterStatement
+}
+
+func findFirstNonSpace(toks []tokenizer.Token) tokenizer.Token {
+	for i, tok := range toks {
+		if tok.Type == tokenizer.SpaceToken || tok.Type == tokenizer.CommentToken {
 			continue
 		}
-		if parts[i].Type != tokenizer.IdentifierToken {
-			fmt.Println("was in fact a ", parts[i].String())
-			ts.EmitError(ModuleNeedsName{
-				where: where,
-			})
-			fmt.Println("error emitted")
-			return lookForStatement
-		} else {
-			name = parts[i].Range.String()
-			break
-		}
+		return toks[i]
 	}
-
-	ts.program.exposing = &Exposes{
-		name:     name,
-		exposing: []string{},
-	}
-	fmt.Println("Made exposing")
-
-	return lookForStatement
+	return tokenizer.Token{Type: tokenizer.UnknownToken}
 }
+
 func mergeRangesOfTokens(toks []tokenizer.Token) tokenizer.SourceRange {
 	if len(toks) < 1 {
 		return tokenizer.SourceRange{}
@@ -136,10 +225,6 @@ func mergeRangesOfTokens(toks []tokenizer.Token) tokenizer.SourceRange {
 	return merged
 }
 
-func parseImport(ts *TokenSource) stateFn {
-	return nil
-}
-
 func parseTypeDefinition(ts *TokenSource) stateFn {
 	return nil
 }
@@ -148,12 +233,25 @@ type TokenSource struct {
 	tokens     []tokenizer.Token
 	tokenIndex int
 
-	program *Program
+	program *AST
 	errors  tokenizer.ComboError
+}
+
+func (ts *TokenSource) AddNode(node TopASTNode) {
+	ts.program.toplevel = append(ts.program.toplevel, node)
 }
 
 func (ts *TokenSource) EmitError(err error) {
 	ts.errors = append(ts.errors, err)
+}
+func (ts *TokenSource) PrevToken() tokenizer.Token {
+	if ts.tokenIndex == 0 {
+		return tokenizer.Token{
+			Range: tokenizer.SourceRange{},
+			Type:  tokenizer.NewlineToken,
+		}
+	}
+	return ts.tokens[ts.tokenIndex-1]
 }
 
 func (ts *TokenSource) Peek() tokenizer.Token {
@@ -171,21 +269,18 @@ func (ts *TokenSource) Take() tokenizer.Token {
 func (ts *TokenSource) takeUntilNewline() []tokenizer.Token {
 	toks := []tokenizer.Token{}
 	for {
-		t := ts.Take()
+		t := ts.Peek()
 		toks = append(toks, t)
 		if t.Type == tokenizer.NewlineToken {
 			break
 		}
+		ts.Take()
 	}
 	return toks
 }
 
 func (ts *TokenSource) Finished() bool {
 	return ts.tokenIndex >= len(ts.tokens)
-}
-
-type Import struct {
-	name string
 }
 
 type Exposes struct {

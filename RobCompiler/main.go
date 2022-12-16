@@ -13,12 +13,13 @@ import (
 var source string
 
 func main() {
-	fmt.Println("===== filename.rob")
-	fmt.Println(source)
-	fmt.Println("=====")
 
 	fmt.Println("Tokenizing")
 	tokens, tok_err := tokenizer.Tokenize(source)
+
+	fmt.Println("===== filename.rob")
+	fmt.Println(ColorizeTokens(tokens))
+	fmt.Println("===============")
 
 	f, _ := os.Create("token_log.txt")
 	fmt.Fprint(f, tokens)
@@ -46,12 +47,18 @@ func ColorizeTokens(toks []tokenizer.Token) string {
 			printFunc = color.New(color.FgRed).SprintFunc()
 
 		case tokenizer.IdentifierToken:
-			printFunc = color.New(color.FgCyan).SprintFunc()
+			s := t.Range.String()
+			if []rune(s)[0] >= 'A' && []rune(s)[0] <= 'Z' {
+				printFunc = color.New(color.FgHiMagenta).SprintFunc()
+			} else {
+				printFunc = color.New(color.FgCyan).SprintFunc()
+
+			}
 
 		case tokenizer.CommentToken:
 			printFunc = color.New(color.FgHiBlack).SprintFunc()
 
-		case tokenizer.PlusToken, tokenizer.MinusToken, tokenizer.StarToken, tokenizer.DivideToken, tokenizer.RightArrowToken, tokenizer.AsignmentToken,
+		case tokenizer.PlusToken, tokenizer.MinusToken, tokenizer.StarToken, tokenizer.DivideToken, tokenizer.RightArrowToken, tokenizer.AssignmentToken,
 			tokenizer.DotToken, tokenizer.ColonToken:
 			printFunc = color.New(color.FgHiYellow).SprintFunc()
 

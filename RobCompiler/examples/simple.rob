@@ -1,4 +1,5 @@
 module Main
+
 import Debug
 
 -- an example program to work on testing the compiler
@@ -15,13 +16,15 @@ program =
 }
 
 
-type alias Robot = ()
+type alias Robot = 
+  { numTicks: Int
+  }
 
 
 update: Robot -> Message -> (Robot, Command)
 update robot msg = 
   case msg of 
-    PrintTicker -> (robot, Debug.text "ticked)
+    PrintTicker -> ({robot | robot.numTicks = robot.numTicks+1}, Debug.text "ticked")
 
 init: () -> (Robot, Command)
 init _ = 

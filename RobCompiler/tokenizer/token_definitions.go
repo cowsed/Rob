@@ -20,7 +20,7 @@ var oneLengthTokenTypes = map[rune]TokenType{
 	']':  CloseSquareToken,
 	'{':  OpenCurlyToken,
 	'}':  CloseCurlyToken,
-	'=':  AsignmentToken,
+	'=':  AssignmentToken,
 	'+':  PlusToken,
 	'-':  MinusToken,
 	'*':  StarToken,
@@ -29,6 +29,7 @@ var oneLengthTokenTypes = map[rune]TokenType{
 	'<':  LessThanToken,
 	'>':  GreaterThanToken,
 	':':  ColonToken,
+	'|':  FieldUpdateToken,
 }
 
 var twoLengthTokenTypes = map[string]TokenType{
@@ -66,7 +67,7 @@ const (
 	CloseSquareToken
 
 	ColonToken
-	AsignmentToken
+	AssignmentToken
 	PlusToken
 	MinusToken
 	StarToken
@@ -85,6 +86,7 @@ const (
 	IdentifierToken
 	NumberToken
 	StringToken
+	FieldUpdateToken
 
 	StatementToken
 )
@@ -104,7 +106,7 @@ func (tt TokenType) String() string {
 		CloseCurlyToken:    "CloseCurlyToken",
 		OpenSquareToken:    "OpenSquareToken",
 		CloseSquareToken:   "CloseSquareToken",
-		AsignmentToken:     "AsignmentToken",
+		AssignmentToken:    "AsignmentToken",
 		PlusToken:          "PlusToken",
 		MinusToken:         "MinusToken",
 		StarToken:          "StarToken",
@@ -122,5 +124,6 @@ func (tt TokenType) String() string {
 		RightArrowToken:    "RightArrowToken",
 		StatementToken:     "StatementToken",
 		ColonToken:         "ColonToken",
+		FieldUpdateToken:   "FieldUpdateToken",
 	}[tt]
 }

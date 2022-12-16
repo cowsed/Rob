@@ -9,12 +9,12 @@ import (
 var red = color.New(color.FgRed).SprintFunc()
 var gray = color.New(color.FgHiBlack).SprintFunc()
 
-type ExpectedStatement struct {
+type ExpectedTopLevel struct {
 	where tokenizer.SourceRange
 }
 
-func (e ExpectedStatement) Error() string {
-	message := tokenizer.ErrorTemplate("Expected Keyword", e.where, "I was looking for something like `module`, `import`, `type` or an identifier for a function or a variable. But instead i found this. ")
+func (e ExpectedTopLevel) Error() string {
+	message := tokenizer.ErrorTemplate("Expected Statement or Declaration", e.where, "I was looking for something like `module`, `import`, `type` or an identifier for a function or a variable. But instead i found this. ")
 	return message
 }
 
@@ -54,6 +54,16 @@ func (m ModuleNeedsName) Error() string {
 	return message
 }
 
+type ImportNeedsName struct {
+	where tokenizer.SourceRange
+}
+
+func (i ImportNeedsName) Error() string {
+	note := "I expected a name after an import statement.\nIt should look something like `import ModuleName`"
+	message := tokenizer.ErrorTemplate("Module Requires a Name", i.where, note)
+	return message
+}
+
 type ExpectedIdentifer struct {
 	where tokenizer.SourceRange
 	why   string
@@ -61,4 +71,30 @@ type ExpectedIdentifer struct {
 
 func (e ExpectedIdentifer) Error() string {
 	return tokenizer.ErrorTemplate("Expected Identifier", e.where, e.why)
+}
+
+type ModuleRedeclaration struct {
+	where tokenizer.SourceRange
+}
+
+func (m ModuleRedeclaration) Error() string {
+	return tokenizer.ErrorTemplate("Module Redeclaration", m.where, "Module redeclared here. There should only ever be one module declaration per file and it should be the first line")
+}
+
+type UnknownIdentifierUsage struct {
+	where tokenizer.SourceRange
+}
+
+func (u UnknownIdentifierUsage) Error() string {
+	return tokenizer.ErrorTemplate("Unknown Identifier Usage", u.where, "I found an identifer here but im not sure what to do with it. Usually when I see an identifier like this it is for a `Type Annotation` name: Type1 -> Type2 or a declaration name t = t + 1")
+}
+
+type SloppyError struct {
+	name        string
+	where       tokenizer.SourceRange
+	description string
+}
+
+func (s SloppyError) Error() string {
+	return tokenizer.ErrorTemplate(s.name, s.where, s.description)
 }

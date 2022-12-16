@@ -40,7 +40,6 @@ func (sr SourceRange) GetLine() string {
 	lineEnd := sr.End - 1
 	for i := sr.End - 1; i < len(*sr.SourceRunes); i++ {
 		lineEnd = i
-		fmt.Println("finding end", string((*sr.SourceRunes)[i]))
 		if (*sr.SourceRunes)[i] == '\n' {
 			break
 		}
